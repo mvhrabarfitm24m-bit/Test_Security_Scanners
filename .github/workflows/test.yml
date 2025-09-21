@@ -1,39 +1,34 @@
 name: Code Scan Pipeline
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
+  push:          # спрацьовує на кожному коміті
+  pull_request:  # і на кожному PR
 
 jobs:
   sast-scan:
     name: SAST scan
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Prepare reports dir
         run: mkdir -p ${{ github.workspace }}/reports/sast
 
-      - name: Pull SAST image (optional, shows status)
-        run: docker pull testik1111/sast-scanner:1.0
-
       - name: Run SAST scanner
         run: |
-          # підмонтовано весь репозиторій в /app всередині контейнера
-          # якщо твій сканер сам шукає /app — досить викликати контейнер без додаткових аргументів
           docker run --rm \
-            -v ${{ github.workspace }}:/app \
-            -v ${{ github.workspace }}/reports/sast:/reports \
-            testik1111/sast-scanner:1.0
+            -v ${{ github.workspace }}:/data \
+            testik1111/sast-scanner:1.0 \
+            --dir /data/app.py \
+            --output-dir /data/reports/sast \
+            --output sast_results_docker.json
 
       - name: Upload SAST report
         uses: actions/upload-artifact@v4
         with:
           name: sast-report
-          path: reports/sast/**
+          path: reports/sast/sast_results_docker.json
 
   sca-scan:
     name: SCA scan
@@ -47,15 +42,17 @@ jobs:
       - name: Run SCA scanner
         run: |
           docker run --rm \
-            -v ${{ github.workspace }}:/app \
-            -v ${{ github.workspace }}/reports/sca:/reports \
-            testik1111/sca-scanner:1.0
+            -v ${{ github.workspace }}:/data \
+            testik1111/sca-scanner:1.0 \
+            --dir /data \
+            --output-dir /data/reports/sca \
+            --output sca_results_docker.json
 
       - name: Upload SCA report
         uses: actions/upload-artifact@v4
         with:
           name: sca-report
-          path: reports/sca/**
+          path: reports/sca/sca_results_docker.json
 
   image-scan:
     name: Image scan
@@ -66,16 +63,18 @@ jobs:
       - name: Prepare reports dir
         run: mkdir -p ${{ github.workspace }}/reports/image
 
-      - name: Run Image scanner (needs docker socket)
+      - name: Run Image scanner
         run: |
-          # Дача доступу до docker daemon хоста (для перевірки локальних образів)
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            -v ${{ github.workspace }}/reports/image:/reports \
-            testik1111/image-scanner:1.0
+            -v ${{ github.workspace }}:/data \
+            testik1111/image-scanner:1.0 \
+            --compose /data/docker-compose.yml \
+            --output-dir /data/reports/image \
+            --output compose_results_docker.json
 
       - name: Upload Image scan report
         uses: actions/upload-artifact@v4
         with:
           name: image-report
-          path: reports/image/**
+          path: reports/image/compose_results_docker.json
