@@ -1,0 +1,81 @@
+name: Code Scan Pipeline
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  sast-scan:
+    name: SAST scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare reports dir
+        run: mkdir -p ${{ github.workspace }}/reports/sast
+
+      - name: Pull SAST image (optional, shows status)
+        run: docker pull testik1111/sast-scanner:1.0
+
+      - name: Run SAST scanner
+        run: |
+          # підмонтовано весь репозиторій в /app всередині контейнера
+          # якщо твій сканер сам шукає /app — досить викликати контейнер без додаткових аргументів
+          docker run --rm \
+            -v ${{ github.workspace }}:/app \
+            -v ${{ github.workspace }}/reports/sast:/reports \
+            testik1111/sast-scanner:1.0
+
+      - name: Upload SAST report
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-report
+          path: reports/sast/**
+
+  sca-scan:
+    name: SCA scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare reports dir
+        run: mkdir -p ${{ github.workspace }}/reports/sca
+
+      - name: Run SCA scanner
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/app \
+            -v ${{ github.workspace }}/reports/sca:/reports \
+            testik1111/sca-scanner:1.0
+
+      - name: Upload SCA report
+        uses: actions/upload-artifact@v4
+        with:
+          name: sca-report
+          path: reports/sca/**
+
+  image-scan:
+    name: Image scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare reports dir
+        run: mkdir -p ${{ github.workspace }}/reports/image
+
+      - name: Run Image scanner (needs docker socket)
+        run: |
+          # Дача доступу до docker daemon хоста (для перевірки локальних образів)
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v ${{ github.workspace }}/reports/image:/reports \
+            testik1111/image-scanner:1.0
+
+      - name: Upload Image scan report
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-report
+          path: reports/image/**
