@@ -1,7 +1,7 @@
 name: Code Scan Pipeline
 
 on:
-  push:          # спрацьовує на кожному коміті
+  push:          # запускається на кожному коміті
   pull_request:  # і на кожному PR
 
 jobs:
@@ -13,7 +13,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Prepare reports dir
-        run: mkdir -p ${{ github.workspace }}/reports/sast
+        run: |
+          mkdir -p ${{ github.workspace }}/reports/sast
+          chmod -R 777 ${{ github.workspace }}/reports/sast
 
       - name: Run SAST scanner
         run: |
@@ -37,7 +39,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Prepare reports dir
-        run: mkdir -p ${{ github.workspace }}/reports/sca
+        run: |
+          mkdir -p ${{ github.workspace }}/reports/sca
+          chmod -R 777 ${{ github.workspace }}/reports/sca
 
       - name: Run SCA scanner
         run: |
@@ -61,7 +65,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Prepare reports dir
-        run: mkdir -p ${{ github.workspace }}/reports/image
+        run: |
+          mkdir -p ${{ github.workspace }}/reports/image
+          chmod -R 777 ${{ github.workspace }}/reports/image
 
       - name: Run Image scanner
         run: |
